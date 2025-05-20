@@ -1,0 +1,6 @@
+Django==5.2
+pillow==11.1.0
+environs==14.1.1
+pillow==11.1.0 
+aiogram==3.19.0
+psycopg2==2.9.10
