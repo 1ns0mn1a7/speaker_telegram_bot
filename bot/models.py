@@ -65,6 +65,7 @@ class Question(models.Model):
         related_name='questions',
         null=True
     )
+    tg_chat_id = models.BigIntegerField(null=True)
 
 
 class Donat(models.Model):
