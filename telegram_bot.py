@@ -6,11 +6,13 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "telegramm_bot.settings")
 django.setup()
 
 
+from django.utils.timezone import now
 from dotenv import load_dotenv
 from telegram import Update, ReplyKeyboardMarkup, LabeledPrice
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, PreCheckoutQueryHandler
-from bot.models import Participant, Donat
+from bot.models import Participant, Donat, Question, Event
 from decimal import Decimal
+from telegram_tools.event_utils import update_event_activity
 
 
 def build_main_menu():
@@ -24,6 +26,7 @@ def build_main_menu():
 
 
 def build_donate_menu():
+    """Формирует меню для доната"""
     buttons = [
         ["100", "200", "500"],
         ["Своя сумма"],
@@ -45,6 +48,10 @@ def start(update: Update, context: CallbackContext):
     """Команда /start — приветствие + меню"""
     welcome_text = "Привет! Это бот, в котором ты можешь посмотреть список программ и спикеров, а также задать вопросы!"
 
+    tg_id = update.effective_user.id
+    username = update.effective_user.username or "Без имени"
+    Participant.objects.get_or_create(tg_id=tg_id, defaults={"name": username})
+
     chat_id = update.effective_chat.id
     context.bot.send_message(
         chat_id=chat_id,
@@ -64,21 +71,76 @@ def handle_message(update: Update, context: CallbackContext):
     if user_states.get(user_id) == "awaiting_question":
         user_states[user_id] = None
 
+        username = update.effective_user.username or "Без имени"
+        participant, _ = Participant.objects.get_or_create(
+            tg_id=chat_id,
+            defaults={"name": username}
+        )
+
+        active_event = Event.objects.filter(
+            start__lte=now(),
+            finish__gte=now(),
+            speaker__isnull=False
+        ).first()
+
+        Question.objects.create(
+            author=participant,
+            question=text,
+            event=active_event,
+            tg_chat_id=chat_id
+        )
+
         context.bot.send_message(
             chat_id=chat_id,
             text="Спасибо! Вопрос получен."
         )
 
-        admin_chat_id = os.getenv("ADMIN_CHAT_ID")
-        if admin_chat_id:
+        if active_event and active_event.speaker and active_event.speaker.tg_id:
             context.bot.send_message(
-                chat_id=admin_chat_id,
-                text=f"Новый вопрос от @{update.effective_user.username or 'без имени'}:\n{text}"
+                chat_id=active_event.speaker.tg_id,
+                text=f"Вам пришёл вопрос от участника @{username}:\n{text}"
+            )
+
+        organizers = Participant.objects.filter(organizer=True, tg_id__isnull=False)
+
+        for org in organizers:
+            context.bot.send_message(
+                chat_id=org.tg_id,
+                text=f"Новый вопрос от @{username}:\n{text}"
             )
         return send_main_menu(chat_id, context)
 
     if text == "Посмотреть программу":
-        context.bot.send_message(chat_id=chat_id, text="Программа пока не загружена.")
+        update_event_activity()
+        events = Event.objects.filter(finish__gte=now()).order_by("start")
+
+        if not events.exists():
+            context.bot.send_message(chat_id=chat_id, text="Пока нет запланированных мероприятий.")
+            return
+
+        messages = []
+        for event in events:
+            title = event.name
+            date = event.start.strftime("%d.%m.%Y")
+            time_range = f"{event.start.strftime('%H:%M')}–{event.finish.strftime('%H:%M')}"
+            place = event.place.name if event.place else "Будет определено позже"
+            speaker = event.speaker.name if event.speaker else "Будет определено позже"
+
+            message = (
+                f"Мероприятие: {title}\n"
+                f"Дата: {date}\n"
+                f"Время проведения: {time_range}\n"
+                f"Место: {place}\n"
+                f"Спикер: {speaker}"
+            )
+
+            if event.active:
+                message = "Сейчас идёт:\n\n" + message
+
+            messages.append(message)
+
+        for message in messages:
+            context.bot.send_message(chat_id=chat_id, text=message)
         return
 
     if text == "Задать вопрос":
@@ -176,7 +238,6 @@ def precheckout_callback(update: Update, context: CallbackContext):
 
 
 def successful_payment_callback(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
     tg_id = update.effective_user.id
     username = update.effective_user.username or "Без имени"
 
