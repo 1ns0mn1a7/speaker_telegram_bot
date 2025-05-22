@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Participant, Place, Event, Question, Donat
+from .models import Participant, Place, Event, Question, Donat, Message
 
 
 class ParticipantAdmin(admin.ModelAdmin):
@@ -64,12 +64,23 @@ class QuestionAdmin(admin.ModelAdmin):
     )
 
 
+class MessageAdmin(admin.ModelAdmin):
+    list_display = (
+        'message',
+        'creation_date',
+        'send_status'
+    )
+    list_filter = (
+        'send_status',
+        'creation_date'
+    )
+    search_fields = ['message']
+    raw_id_fields = ['recipent']
+
+
 admin.site.register(Participant, ParticipantAdmin)
 admin.site.register(Place)
 admin.site.register(Event, EventAdmin)
 admin.site.register(Question, QuestionAdmin)
 admin.site.register(Donat, DonatAdmin)
-
-
-
-# Register your models here.
+admin.site.register(Message, MessageAdmin)

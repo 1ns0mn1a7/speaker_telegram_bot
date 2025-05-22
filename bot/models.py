@@ -4,17 +4,50 @@ from django.db import models
 class Participant(models.Model):
     '''Модель участников мероприятия, представляющая разные типы участников'''
     name = models.CharField('Имя участника', max_length=50)
-    subscriber = models.BooleanField('Подписчик', default=False, null=True, blank=True)
-    organizer = models.BooleanField('Организатор', default=False, null=True, blank=True)
-    speaker = models.BooleanField('Докладчик', default=False, null=True, blank=True)
+    subscriber = models.BooleanField(
+        'Подписчик',
+        default=False,
+        null=True,
+        blank=True
+    )
+    organizer = models.BooleanField(
+        'Организатор',
+        default=False,
+        null=True,
+        blank=True
+    )
+    speaker = models.BooleanField(
+        'Докладчик',
+        default=False,
+        null=True,
+        blank=True
+    )
     tg_id = models.BigIntegerField(unique=True)
 
     def __str__(self):
         return f'{self.name}'
 
 
+class Message(models.Model):
+    message = models.CharField('Текст сообщения', max_length=100)
+    creation_date = models.DateTimeField('Дата создания')
+    send_status = models.BooleanField('Отправлено', default=False)
+    image = models.ImageField(upload_to="media/")
+    recipent = models.ManyToManyField(
+        Participant,
+        related_name='messages',
+        verbose_name='Кому отправлено'
+    )
+
+    def __str__(self):
+        return f'{self.message}'
+
+
 class Place(models.Model):
-    '''Модель места проведения мероприятий, представляющая различные типы мест'''
+    '''
+    Модель места проведения мероприятий,
+    представляющая различные типы мест
+    '''
     name = models.CharField('Место проведения', max_length=50)
 
     def __str__(self):
