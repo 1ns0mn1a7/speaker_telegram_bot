@@ -6,11 +6,11 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "telegramm_bot.settings")
 django.setup()
 
 
-from django.utils.timezone import now
 from dotenv import load_dotenv
 from telegram import Update, ReplyKeyboardMarkup, LabeledPrice
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, PreCheckoutQueryHandler
-from bot.models import Participant, Donat, Question, Event
+from bot.models import Participant, Donat, Question, Event, Message
+from django.utils.timezone import now
 from decimal import Decimal
 from telegram_tools.event_utils import update_event_activity
 
@@ -220,6 +220,45 @@ def handle_message(update: Update, context: CallbackContext):
             )
         except ValueError:
             context.bot.send_message(chat_id=chat_id, text="Введите сумму числом (например, 150)")
+        return
+
+    if text == "Сделать рассылку":
+        participant = Participant.objects.filter(tg_id=user_id).first()
+        if participant and participant.organizer:
+            user_states[user_id] = "awaiting_broadcast_text"
+            context.bot.send_message(chat_id=chat_id, text="Введите текст рассылки для подписчиков:")
+        else:
+            context.bot.send_message(chat_id=chat_id, text="Эта функция доступна только организаторам.")
+        return
+
+    if user_states.get(user_id) == "awaiting_broadcast_text":
+        user_states[user_id] = None
+
+        header = "⚡ Новость от организаторов:"
+        message_text = text
+
+        recipients = Participant.objects.filter(subscriber=True, tg_id__isnull=False)
+
+        for sub in recipients:
+            try:
+                context.bot.send_message(
+                    chat_id=sub.tg_id,
+                    text=f"<b>{header}</b>\n\n{message_text}",
+                    parse_mode="HTML"
+                )
+            except Exception as error:
+                pass
+
+        message = Message.objects.create(
+            header=header,
+            message=message_text,
+            creation_date=now(),
+            send_status=True
+        )
+        message.recipent.set(recipients)
+
+        context.bot.send_message(chat_id=chat_id, text="Рассылка отправлена")
+        send_main_menu(chat_id, context)
         return
 
     if text == "Назад":
