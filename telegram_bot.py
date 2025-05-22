@@ -15,13 +15,15 @@ from decimal import Decimal
 from telegram_tools.event_utils import update_event_activity
 
 
-def build_main_menu():
+def build_main_menu(is_organizer=False):
     """Формирует главное меню клавиатуры"""
     buttons = [
         ["Посмотреть программу", "Задать вопрос"],
         ["Подписаться на рассылку новостей"],
         ["💸 Поддержать"]
     ]
+    if is_organizer:
+        buttons.append(["Сделать рассылку"])
     return ReplyKeyboardMarkup(buttons, resize_keyboard=True)
 
 
@@ -37,10 +39,13 @@ def build_donate_menu():
 
 def send_main_menu(chat_id: int, context: CallbackContext):
     """Отправка главного меню"""
+    participant = Participant.objects.filter(tg_id=chat_id).first()
+    is_organizer = participant.organizer if participant else False
+
     context.bot.send_message(
         chat_id=chat_id,
         text="Выбери действие с клавиатуры ниже",
-        reply_markup=build_main_menu()
+        reply_markup=build_main_menu(is_organizer=is_organizer)
     )
 
 
