@@ -29,14 +29,36 @@ class Participant(models.Model):
 
 
 class Message(models.Model):
-    message = models.CharField('Текст сообщения', max_length=100)
-    creation_date = models.DateTimeField('Дата создания')
+    header = models.CharField(
+        'Текст заголовка',
+        max_length=30,
+        null=True,
+        blank=True
+    )
+    message = models.CharField(
+        'Текст сообщения',
+        max_length=100,
+        null=True,
+        blank=True
+    )
+    creation_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Дата создания',
+    )
     send_status = models.BooleanField('Отправлено', default=False)
-    image = models.ImageField(upload_to="media/")
+    image = models.ImageField(
+        upload_to='media/',
+        null=True,
+        blank=True
+    )
     recipent = models.ManyToManyField(
         Participant,
         related_name='messages',
-        verbose_name='Кому отправлено'
+        verbose_name='Кому отправлено',
+        default=None,
+        blank=True,
+        null=True
     )
 
     def __str__(self):
