@@ -1,10 +1,11 @@
 from django.core.management.base import BaseCommand
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, PreCheckoutQueryHandler
+from telegram import ReplyKeyboardMarkup
 from dotenv import load_dotenv
 import os
 
 from bot.handlers.menu import start, send_main_menu
-from bot.handlers.questions import handle_question
+from bot.handlers.questions import handle_question, handle_speaker_choice, handle_question_for_speaker
 from bot.handlers.broadcasts import start_broadcast, handle_broadcast
 from bot.handlers.donations import (
     handle_donation_choice,
@@ -35,16 +36,41 @@ class Command(BaseCommand):
             text = update.message.text.strip()
             state = context.bot_data.setdefault("user_states", {})
 
+            if isinstance(state.get(user_id), dict) and state[user_id].get("state") == "awaiting_speaker_choice":
+                if handle_speaker_choice(text, user_id, chat_id, state, context):
+                    return
+
+            if isinstance(state.get(user_id), dict) and state[user_id].get("state") == "awaiting_question_text":
+                handle_question_for_speaker(text, user_id, chat_id, state, context)
+                state[user_id] = None
+                return send_main_menu(chat_id, context)
+
             if state.get(user_id) == "awaiting_question":
                 state[user_id] = None
                 handle_question(text, user_id, chat_id, context)
                 return send_main_menu(chat_id, context)
 
             if text == "Задать вопрос":
-                state[user_id] = "awaiting_question"
+                active_event = Event.objects.filter(start__lte=now(), finish__gte=now()).first()
+                if not active_event:
+                    context.bot.send_message(chat_id=chat_id, text="Нет активных мероприятий.")
+                    return
+
+                speakers = active_event.speaker.all()
+                if not speakers.exists():
+                    context.bot.send_message(chat_id=chat_id, text="Нет спикеров у мероприятия.")
+                    return
+
+                state[user_id] = {
+                    "state": "awaiting_speaker_choice",
+                    "event_id": active_event.id
+                }
+
+                speaker_buttons = [[speaker.name] for speaker in speakers]
                 context.bot.send_message(
                     chat_id=chat_id,
-                    text="Напиши свой вопрос в следующем сообщении:"
+                    text="Кому вы хотите задать вопрос?",
+                    reply_markup=ReplyKeyboardMarkup(speaker_buttons, resize_keyboard=True)
                 )
                 return
 
@@ -59,6 +85,7 @@ class Command(BaseCommand):
             if text == "Посмотреть программу":
                 update_event_activity()
                 events = Event.objects.filter(finish__gte=now()).order_by("start")
+
                 if not events.exists():
                     context.bot.send_message(
                         chat_id=chat_id,
@@ -70,16 +97,23 @@ class Command(BaseCommand):
                     date = event.start.strftime("%d.%m.%Y")
                     time_range = f"{event.start.strftime('%H:%M')}–{event.finish.strftime('%H:%M')}"
                     place = event.place.name if event.place else "Будет определено позже"
-                    speaker = event.speaker.name if event.speaker else "Будет определено позже"
+
+                    speakers = event.speaker.all()
+                    speaker_names = ", ".join(
+                        [speaker.name for speaker in speakers]
+                    ) if speakers else "Будет определено позже"
+
                     message = (
                         f"Мероприятие: {event.name}\n"
                         f"Дата: {date}\n"
                         f"Время проведения: {time_range}\n"
                         f"Место: {place}\n"
-                        f"Спикер: {speaker}"
+                        f"Спикер(ы): {speaker_names}"
                     )
+
                     if event.active:
                         message = "Сейчас идёт:\n\n" + message
+
                     context.bot.send_message(chat_id=chat_id, text=message)
                 return
 
