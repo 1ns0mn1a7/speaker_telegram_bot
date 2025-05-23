@@ -31,7 +31,6 @@ class DonatAdmin(admin.ModelAdmin):
 class EventAdmin(admin.ModelAdmin):
     list_display = (
         'name',
-        'speaker',
         'place',
         'start',
         'finish',
@@ -47,6 +46,8 @@ class EventAdmin(admin.ModelAdmin):
         'start',
         'active'
     )
+    # autocomplete_fields = ('speaker',)
+    raw_id_fields = ['speaker']
 
 
 class QuestionAdmin(admin.ModelAdmin):
