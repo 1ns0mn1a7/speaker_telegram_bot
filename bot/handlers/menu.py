@@ -14,6 +14,6 @@ def send_main_menu(chat_id, context):
     is_organizer = participant.organizer if participant else False
     context.bot.send_message(
         chat_id=chat_id,
-        text="Выбери действие с клавиатуры ниже",
+        text="Выберите действие с клавиатуры ниже",
         reply_markup=build_main_menu(is_organizer)
     )
