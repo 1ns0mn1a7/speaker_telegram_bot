@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import Participant, Place, Event, Question, Donat, Message
+from dynamic_raw_id.admin import DynamicRawIDMixin
 
 
 class ParticipantAdmin(admin.ModelAdmin):
@@ -28,10 +29,9 @@ class DonatAdmin(admin.ModelAdmin):
     ]
 
 
-class EventAdmin(admin.ModelAdmin):
+class EventAdmin(DynamicRawIDMixin, admin.ModelAdmin):
     list_display = (
         'name',
-        'speaker',
         'place',
         'start',
         'finish',
@@ -47,6 +47,8 @@ class EventAdmin(admin.ModelAdmin):
         'start',
         'active'
     )
+    # autocomplete_fields = ('speaker',)
+    dynamic_raw_id_fields = ['speaker']
 
 
 class QuestionAdmin(admin.ModelAdmin):
@@ -64,7 +66,7 @@ class QuestionAdmin(admin.ModelAdmin):
     )
 
 
-class MessageAdmin(admin.ModelAdmin):
+class MessageAdmin(DynamicRawIDMixin, admin.ModelAdmin):
     list_display = (
         'message',
         'creation_date',
@@ -75,7 +77,7 @@ class MessageAdmin(admin.ModelAdmin):
         'creation_date'
     )
     search_fields = ['message']
-    raw_id_fields = ['recipent']
+    dynamic_raw_id_fields = ['recipent']
 
 
 admin.site.register(Participant, ParticipantAdmin)

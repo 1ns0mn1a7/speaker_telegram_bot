@@ -57,8 +57,7 @@ class Message(models.Model):
         related_name='messages',
         verbose_name='Кому отправлено',
         default=None,
-        blank=True,
-        null=True
+        blank=True
     )
 
     def __str__(self):
@@ -81,13 +80,12 @@ class Event(models.Model):
     name = models.CharField(
         'Название мероприятия'
     )
-    speaker = models.ForeignKey(
+    speaker = models.ManyToManyField(
         Participant,
-        on_delete=models.SET_NULL,
-        verbose_name='Докладчик',
         related_name='events',
-        blank=True,
-        null=True,
+        verbose_name='докладчики',
+        default=None,
+        blank=True
     )
     place = models.ForeignKey(
         Place,
