@@ -25,7 +25,7 @@ def handle_fixed_amount(text, update, context):
     context.bot.send_invoice(
         chat_id=chat_id,
         title="Поддержка проекта",
-        description=f"Вы жертвуете {text}₽",
+        description=f"Сумма поддержки {text}₽",
         payload="donate",
         provider_token=os.getenv("TELEGRAM_PROVIDER_TOKEN"),
         currency="RUB",
